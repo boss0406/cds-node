@@ -1,2 +1,3 @@
 # cds-node
-cds节点源码
+#节点部署
+见文档《CDS节点资料汇总.docx》
