@@ -676,7 +676,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<version>1.5.16.RELEASE</version>
 				<configuration>
-					<mainClass>org.csd.main.blockchain.Application</mainClass>
+					<mainClass>org.cds.main.blockchain.Application</mainClass>
 				</configuration>
 				<executions>
 					<execution>
