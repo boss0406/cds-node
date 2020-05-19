@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
 
+import org.apache.commons.collections4.map.LRUMap;
 import org.cds.main.blockchain.config.CommonConfig;
 import org.cds.main.blockchain.config.SystemProperties;
 import org.cds.main.blockchain.core.Block;
@@ -75,7 +76,6 @@ import org.cds.main.blockchain.util.ByteUtil;
 import org.cds.main.blockchain.vm.DataWord;
 import org.cds.main.blockchain.vm.LogInfo;
 import org.cds.main.blockchain.vm.program.invoke.ProgramInvokeFactory;
-import org.apache.commons.collections4.map.LRUMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -539,9 +539,28 @@ public class EthJsonRpcImpl implements JsonRpc {
 
 		tx.sign(account.getEcKey());
 
-		validateAndSubmit(tx);
-		
-		return TypeConverter.toJsonHex(tx.getHash());
+		ByteArrayWrapper txHashW = new ByteArrayWrapper(tx.getHash());
+		if(pendingState.isTxreceived(txHashW)) {
+			throw new RuntimeException("repeated transaction received: " + ByteUtil.toHexString(tx.getHash()));
+		}else {
+			SettableFuture<TransactionReceipt> notice = SettableFuture.create();
+			noticePendingOrDropReceipts.put(txHashW, notice);
+			tx.rlpParse();
+			validateAndSubmit(tx);
+			TransactionReceipt tr;
+			try {
+				tr = notice.get(30, TimeUnit.SECONDS);
+				if(StringUtils.isEmpty(tr.getError())) {
+					return TypeConverter.toJsonHex(tx.getHash());
+				}else {
+					throw new RuntimeException(tr.getError());
+				}
+			} catch (Exception e) {
+				log.error("sendTransaction error",e);
+				throw new RuntimeException(e.getMessage());
+			}
+			
+		}
 	}
 
 	public String eth_sendRawTransaction(String rawData) throws Exception {
